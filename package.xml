@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tb3_vio_ekf</name>
+  <version>0.1.0</version>
+  <description>
+    EKF-fused Visual-Inertial Odometry for TurtleBot3 in Gazebo simulation.
+    Uses rtabmap_ros (rgbd_odometry) as the visual odometry front-end and
+    robot_localization (ekf_node) as the fusion back-end, glued together
+    with two small rclpy relay nodes.
+  </description>
+  <maintainer email="you@example.com">you</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <exec_depend>robot_state_publisher</exec_depend>
+  <exec_depend>gazebo_ros</exec_depend>
+  <exec_depend>turtlebot3_description</exec_depend>
+  <exec_depend>turtlebot3_gazebo</exec_depend>
+
+  <!-- Package name for the odometry node varies by rtabmap_ros version:
+       rtabmap_odom on newer split releases, rtabmap_ros on older ones. -->
+  <exec_depend>rtabmap_odom</exec_depend>
+  <exec_depend>robot_localization</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
