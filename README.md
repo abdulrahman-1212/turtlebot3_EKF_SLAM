@@ -71,51 +71,6 @@ Once Gazebo is up, drive the robot around (e.g. `ros2 run turtlebot3_teleop tele
 ros2 topic echo /odometry/filtered
 ```
 
-## Troubleshooting
-
-### WSL2: `gzserver`/`gzclient` camera issues
-
-Two distinct symptoms show up under WSL2, and they have different causes:
-
-**A) `Service /spawn_entity unavailable` (spawning itself fails/times out)**
-`gzserver` is hanging during startup because it can't get any working OpenGL context. Fix:
-```bash
-export LIBGL_ALWAYS_SOFTWARE=1
-```
-
-**B) Spawning succeeds, but camera topics never publish and/or `gzclient` crashes with an
-assertion on `gazebo::rendering::Camera`**
-This is narrower: Gazebo Classic's OGRE renderer checks the *reported* OpenGL version before
-creating a `Camera` sensor object, and Mesa's software (`llvmpipe`) driver often reports a version
-too old to pass that check — so the camera sensor silently fails to instantiate even though physics
-and spawning work fine. Force the reported version up:
-```bash
-export LIBGL_ALWAYS_SOFTWARE=1
-export MESA_GL_VERSION_OVERRIDE=3.3
-export MESA_GLSL_VERSION_OVERRIDE=330
-```
-And skip the GUI, which doesn't affect the pipeline and removes one more thing that can crash:
-```bash
-ros2 launch tb3_vio_ekf vio_ekf_sim.launch.py gui:=false
-```
-
-If camera topics *still* don't appear after both env vars, confirm directly rather than guessing:
-```bash
-ros2 topic list | grep camera
-ros2 topic hz /camera/rgb/image_raw
-```
-If `/camera/rgb/image_raw` doesn't even appear in `topic list`, the sensor plugin isn't loading at
-all (check `gzserver`'s own stderr for OGRE/rendering errors); if it appears but `hz` reports
-nothing, it's the same silent-render-failure issue above and worth trying WSLg's GPU passthrough
-(Windows 11 + updated GPU drivers) or a native Ubuntu install as a more permanent fix — Gazebo
-Classic's camera sensors are a genuinely fragile combination with WSL2's virtualized GPU stack, and
-no combination of env vars is 100% guaranteed to unblock every WSL2 config.
-
-### `rgbd_odometry` says "Did not receive data since 5 seconds!"
-
-This just means `/camera/rgb/image_raw` and `/camera/depth/image_raw` aren't being published yet —
-see above. Once spawning *and* rendering both succeed, this warning should stop within a few
-seconds of `rgbd_odometry` starting to receive frames.
 
 ## Tuning notes
 
@@ -123,9 +78,4 @@ seconds of `rgbd_odometry` starting to receive frames.
 - **`vo_odom_relay.py`**: `POS_VAR_DEFAULT`, `YAW_VAR_DEFAULT`, and `MAX_JUMP_M` are heuristics. A more principled version would derive per-message covariance from rtabmap's own odometry info (inlier count, reprojection error) rather than static values — rtabmap publishes this on `/rtabmap/odom_info` if you want to wire it in.
 - **`two_d_mode: true`** in `ekf.yaml` constrains the filter to planar motion, which is appropriate for TurtleBot3 on flat ground. Set to `false` only if you actually need z/roll/pitch estimates (e.g. ramps).
 
-## Known limitations / natural next steps
 
-- This is **loosely-coupled** VIO: the visual front-end and IMU are fused after each has already produced/consumed its own estimate, rather than tightly-coupled at the raw feature/IMU-preintegration level (as in VINS-Fusion, OpenVINS, etc.). That's the right tradeoff for "get something working reliably," but it caps achievable accuracy compared to a tightly-coupled filter.
-- No wheel odometry is fused here, only VO + IMU, per your request. Adding `/odom` (wheel) as a third `odom1` source in `ekf.yaml` is straightforward if you want a three-way fusion for comparison or robustness when VO degrades (e.g., in a texture-poor part of the world).
-- Track-loss detection in `vo_odom_relay.py` is a simple heuristic (position jump / snap-to-origin). For anything beyond a demo, prefer reading rtabmap's own odometry status/info topic.
-- Only tested at a design level, not run end-to-end in this environment (no Gazebo/ROS 2 runtime available here) — expect to spend some time on the usual first-launch friction (topic name mismatches, exact rtabmap parameter names for your installed version, etc.).
